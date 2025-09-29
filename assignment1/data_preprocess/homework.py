@@ -1,11 +1,15 @@
 import argparse
-import re
+import regex as re
 import requests
 import json
 from utils import  read_warc_file, read_wet_file
 from datasets import load_dataset
 from typing import Set, Dict
 import string
+
+import chardet
+from bs4 import BeautifulSoup
+import regex as re
 
 def retrieve_bad_words() -> set[str]:
     """Helper function - that reads a list of bad words from a file and returns them as a set.
@@ -17,6 +21,18 @@ def retrieve_bad_words() -> set[str]:
         bad_words = [record.lower() for record in records]
         return set(bad_words)
 
+def _detect_encoding(html: bytes) -> str:
+    """Detects the character encoding of HTML content.
+    Args:
+        html (bytes): HTML content as bytes.
+    Returns:
+        str: Detected character encoding (e.g., 'utf-8', 'iso-8859-1').
+    """
+    if isinstance(html, bytes):
+        result = chardet.detect(html)
+        return result.get('encoding', 'utf-8') # returns a dictionary containing the estimated encoding, a confidence level, and the language detected.
+    return 'utf-8'
+
 
 def html_to_text(html) -> str:
     """Converts HTML content to plain text..
@@ -25,7 +41,16 @@ def html_to_text(html) -> str:
     Returns:
         str: Plain text extracted from HTML.
     """
-    pass 
+    enc_way = _detect_encoding(html)
+
+    try:
+        html = html.decode(enc_way)
+    except (UnicodeDecodeError, AttributeError):
+        html = html.decode('utf-8', errors='ignore') # errors='ignore': If a character or sequence of bytes is encountered that does not conform to the specified encoding, it will be silently dropped from the resulting string or byte sequence.
+
+    result = BeautifulSoup(html, 'html') # lxml是速度较快的解析器，但需要额外安装。html.parser则是Python自带的解析器
+    return result.get_text(separator='\n', strip=True) # get_text()方法用于提取HTML或XML文档中的纯文本内容。separator参数指定文本之间的分隔符
+    
 
 def replace_pii(text: str) -> str:
     """Masks personally identifiable information (PII) from text with the specified masking formats.
@@ -35,7 +60,14 @@ def replace_pii(text: str) -> str:
         str: Text with PII obfuscated.
     """
     # Replace US social security numbers (XXX-XX-XXXX format)
-    pass 
+    if not text:
+        return text
+    
+    patterns = {
+        'SSN' : r"\b\d{3}-\d{2}-\d{4}\b"
+    }
+
+    return re.sub(patterns['SSN'], '[SSN]', text)
     
 
 def clean_text(text: str) -> str:
@@ -55,7 +87,25 @@ def heuristic_quality_filter(text: str) -> bool:
     Returns:
         bool: returns True if the document passes the filters, False otherwise.
     """
-    pass 
+    if not text:
+        return False
+    
+    # presence of bad words 
+    tokens = re.split(r'\s+', text.lower())
+    bad_word_set = retrieve_bad_words()
+    bad = sum(ch in bad_word_set for ch in tokens)
+    tokens_count = len(tokens)
+
+    # punctuation 
+    punct = sum(ch in string.punctuation for ch in text) # string.punctuation is a pre-defined string constant that contains a collection of characters commonly considered punctuation marks.
+
+    char_count = len(text)
+
+    if bad / tokens_count > 0.02 or punct / char_count > 0.1: # if more than 10% of the characters are punctuation, reject the document
+        return False
+    return True
+
+
 
 
 def is_english_text(text: str) -> bool:
@@ -76,6 +126,7 @@ def deduplicate_texts(texts: list[str]) -> list[str]:
         list[str]: Deduplicated list of texts. Implemented a simple Jaccard similarity based deduplication.
     """
     pass
+
 
 
 if __name__ == '__main__' :
