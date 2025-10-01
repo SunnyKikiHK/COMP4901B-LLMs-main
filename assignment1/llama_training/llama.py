@@ -100,7 +100,19 @@ class Attention(nn.Module):
         
         #TODO
         # ====================== Implement compute_query_key_value_scores here ======================
-        pass
+        _, _, seqlen, head_dim = query.size()
+        QK = torch.matmul(query, key.transpose(-2, -1)) # shape: (bs, n_local_heads, seqlen, seqlen)
+        norm_QK = QK / (head_dim ** 0.5)
+
+        # unsequence is not necessary because of broadcasting
+        mark = torch.tril(torch.ones(seqlen, seqlen), diagonal=0, device=query.device).unsqueeze(0).unsqueeze(0) # mask out future tokens
+        masked_QK = norm_QK.masked_fill(mark == 0, float('-inf'))
+
+        attn_w = F.softmax(masked_QK, dim=-1)
+        attn_w = self.attn_dropout(attn_w)
+        output = torch.matmul(attn_w, value)
+
+        return output
         # ====================== Implement compute_query_key_value_scores here ======================
 
 
@@ -280,13 +292,15 @@ class Llama(LlamaPreTrainedModel):
             # if the sequence context is growing too long we must crop it at block_size
             idx_cond = idx if idx.size(1) <= self.params.max_seq_len else idx[:, -self.params.max_seq_len:]
             # forward the model to get the logits for the index in the sequence
-            logits, _ = self(idx_cond)
+            logits, _ = self(idx_cond) #  (batch_size, sequence_length, vocab_size)
             logits_last = logits[:, -1, :]
             if temperature == 0.0:
                 # select the single most likely index
                 #TODO
                 # ====================== Implement greedy sampling here ======================
-                pass
+                idx_next = torch.argmax(logits_last, dim=-1) #  (batch_size, 1)
+                idx = torch.cat((idx, idx_next), dim=1)
+
                 # ====================== Implement greedy sampling here ======================
             else:
                 '''

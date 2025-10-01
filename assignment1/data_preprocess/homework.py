@@ -49,6 +49,9 @@ def html_to_text(html) -> str:
         html = html.decode('utf-8', errors='ignore') # errors='ignore': If a character or sequence of bytes is encountered that does not conform to the specified encoding, it will be silently dropped from the resulting string or byte sequence.
 
     result = BeautifulSoup(html, 'html') # lxml是速度较快的解析器，但需要额外安装。html.parser则是Python自带的解析器
+    # Remove head, header, and footer sections
+    for tag in result(['head', 'header', 'footer', 'script', 'style', 'meta']):
+        tag.decompose()  # Remove the tag and its contents
     return result.get_text(separator='\n', strip=True) # get_text()方法用于提取HTML或XML文档中的纯文本内容。separator参数指定文本之间的分隔符
     
 
@@ -77,8 +80,26 @@ def clean_text(text: str) -> str:
     Returns:
         str: cleaned document
     """
-    pass
+    text = text.replace('\r', '\n') # normalize new line
+    #text = re.sub(r'[^a-zA-Z0-9]', ' ', text) # replace non-alphanumeric characters to space
+    # Remove control characters (except basic whitespace)
+    text = ''.join(ch for ch in text if ch == '\n' or ch == '\t' or (ch >= ' ' and ch <= '~'))
 
+    # Collapse multiple newlines and spaces
+    text = re.sub(r'[ \t]+', ' ', text) # replace multi(+) space and \t to 1 space
+    text = re.sub(r'\n{2,}', '\n', text) # 2': 2 or more new lines to 1 new line
+
+    lines = [line.strip() for line in text.split('\n')]
+    # Remove duplicate lines 
+    dup_lines = []
+    prev = None
+    for ln in lines:
+        if ln != prev:
+            dup_lines.append(ln)
+            prev = ln
+    
+    result = '\n'.join(dup_lines).strip()
+    return result
 
 def heuristic_quality_filter(text: str) -> bool:
     """Rejects documents based on the presence of bad words and punctuation.
@@ -115,7 +136,19 @@ def is_english_text(text: str) -> bool:
     Returns:
         bool: True if text is primarily English, False otherwise
     """
-    pass
+    if not text:
+        return False
+
+    # Count English letters
+    english_letters = re.findall(r'[a-zA-Z]', text)
+    
+    # Count all alphabetic letters (including non-English)
+    total_letters = [char for char in text if char.isalpha()]
+
+    if len(total_letters) == 0:
+        return False
+
+    return len(english_letters) / len(total_letters) >= 0.9
     
 
 def deduplicate_texts(texts: list[str]) -> list[str]:
@@ -125,7 +158,36 @@ def deduplicate_texts(texts: list[str]) -> list[str]:
     Returns:
         list[str]: Deduplicated list of texts. Implemented a simple Jaccard similarity based deduplication.
     """
-    pass
+    seen = set()
+    deduplicated_texts = [] # unique texts without duplicates
+    for text in texts:
+        norm_text = text.strip()
+        if norm_text not in seen:
+            deduplicated_texts.append(norm_text)
+            seen.add(norm_text)
+
+    # Jaccard similarity: J(A, B) = A and B / A or B
+    jaccard_threshold = 0.9
+    def jaccard(a: str, b:str) -> float:
+        set_a = set(a.lower().split())
+        set_b = set(b.lower().split())
+        intersection = len(set_a.intersection(set_b))
+        union = len(set_a.union(set_b))
+        if union == 0:
+            return 0.0
+        return intersection / union
+    
+    filtered_results = []
+    for text in deduplicated_texts:
+        can_filter = False
+        for filter_text in filtered_results:
+            if jaccard(text, filter_text) >= jaccard_threshold:
+                can_filter = True
+                break
+        if not can_filter:
+            filtered_results.append(text)
+    
+    return filtered_results
 
 
 
