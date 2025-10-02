@@ -46,7 +46,7 @@ class WarmupLearningRateScheduler:
 
 	def __init__(self, base_lr: float, warmup_steps: int):
 		self.base_lr = base_lr
-		self.warmup_steps = max(0, warmup_steps)
+		self.warmup_steps = max(0, warmup_steps) # if ? warmup_steps, lr remains constant
 
 	def lr_at_step(self, step: int) -> float:
 		#TODO
@@ -58,7 +58,7 @@ class WarmupLearningRateScheduler:
 		#
 		# Returns:
 		#     float: Learning rate for the given step
-		pass
+		return self.base_lr if step >= self.warmup_steps else self.base_lr * (step / self.warmup_steps)
 		# ====================== Implement lr_at_step here ======================
 
 	def __call__(self, step: int) -> float:

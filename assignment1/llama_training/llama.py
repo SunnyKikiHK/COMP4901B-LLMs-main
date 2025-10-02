@@ -298,9 +298,7 @@ class Llama(LlamaPreTrainedModel):
                 # select the single most likely index
                 #TODO
                 # ====================== Implement greedy sampling here ======================
-                idx_next = torch.argmax(logits_last, dim=-1) #  (batch_size, 1)
-                idx = torch.cat((idx, idx_next), dim=1)
-
+                idx_next = torch.argmax(logits_last) #  (batch_size, 1)
                 # ====================== Implement greedy sampling here ======================
             else:
                 '''
@@ -314,12 +312,21 @@ class Llama(LlamaPreTrainedModel):
                 if top_k is not None:
                     #TODO
                     # ====================== Implement top-k sampling here ======================
-                    pass
+                    scaled_logits = logits_work / temperature #  (batch_size, vocab_size)
+                    topk_logits, topk_indices = torch.topk(scaled_logits, top_k, dim=-1) # (batch_size, top_k)
+                    norm_topk_logits = F.softmax(topk_logits, dim=-1) # (batch_size, top_k)
+                    idx_next_topk = torch.multinomial(norm_topk_logits, num_samples=1) # (batch_size, 1)
+                    idx_next = torch.gather(topk_indices, dim=-1, index=idx_next_topk) # (batch_size, 1)
+
+
                     # ====================== Implement top-k sampling here ======================
 
                 #TODO
                 # ====================== Implement temperature sampling here ======================
-                pass
+                scaled_logits = logits_work / temperature #  (batch_size, vocab_size)
+                logits_probs = F.softmax(scaled_logits, dim=-1) # (batch_size, vocab_size)
+                idx_next = torch.multinomial(logits_probs, num_samples=1) # (batch_size, 1)
+                
                 # ====================== Implement temperature sampling here ======================
 
             # append sampled index to the running sequence and continue
