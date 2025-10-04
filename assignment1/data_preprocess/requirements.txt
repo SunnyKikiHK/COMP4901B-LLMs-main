@@ -9,4 +9,5 @@ bs4
 chardet
 html2text
 nltk
-fasttext
+langdetect
+#fasttext

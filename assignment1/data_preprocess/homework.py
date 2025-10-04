@@ -10,6 +10,7 @@ import string
 import chardet
 from bs4 import BeautifulSoup
 import regex as re
+from langdetect import detect_langs, LangDetectException
 
 def retrieve_bad_words() -> set[str]:
     """Helper function - that reads a list of bad words from a file and returns them as a set.
@@ -67,10 +68,14 @@ def replace_pii(text: str) -> str:
         return text
     
     patterns = {
-        'SSN' : r"\b\d{3}-\d{2}-\d{4}\b"
+        'SSN' : r"\b\d{3}-\d{2}-\d{4}\b",
+        "US_PHONE": r"\+1\d{10}\b",
     }
 
-    return re.sub(patterns['SSN'], '[SSN]', text)
+    text = re.sub(patterns['SSN'], lambda m: re.sub(r'\d', 'X', m.group()), text)
+    # Mask US phone: +1XXXXXXXXXX (preserve +1, replace 10 digits with X)
+    text = re.sub(patterns['US_PHONE'], lambda M: '+1' + 'X'*10, text)
+    return text
     
 
 def clean_text(text: str) -> str:
@@ -81,25 +86,21 @@ def clean_text(text: str) -> str:
         str: cleaned document
     """
     text = text.replace('\r', '\n') # normalize new line
-    #text = re.sub(r'[^a-zA-Z0-9]', ' ', text) # replace non-alphanumeric characters to space
-    # Remove control characters (except basic whitespace)
-    text = ''.join(ch for ch in text if ch == '\n' or ch == '\t' or (ch >= ' ' and ch <= '~'))
-
-    # Collapse multiple newlines and spaces
-    text = re.sub(r'[ \t]+', ' ', text) # replace multi(+) space and \t to 1 space
-    text = re.sub(r'\n{2,}', '\n', text) # 2': 2 or more new lines to 1 new line
-
-    lines = [line.strip() for line in text.split('\n')]
-    # Remove duplicate lines 
-    dup_lines = []
-    prev = None
-    for ln in lines:
-        if ln != prev:
-            dup_lines.append(ln)
-            prev = ln
     
-    result = '\n'.join(dup_lines).strip()
-    return result
+    paragraphs = text.split('\n')
+    clean_paragraphs = []
+
+    for para in paragraphs:
+        # Drop if >100 alnum chars with no whitespace
+        if re.search(r'[A-Za-z0-9]{100,}', para):
+            continue
+        # Drop if no punctuation
+        if not any(ch in string.punctuation for ch in para):
+            continue
+        clean_paragraphs.append(para)
+
+    text = '\n'.join(clean_paragraphs)
+    return text
 
 def heuristic_quality_filter(text: str) -> bool:
     """Rejects documents based on the presence of bad words and punctuation.
@@ -114,18 +115,18 @@ def heuristic_quality_filter(text: str) -> bool:
     # presence of bad words 
     tokens = re.split(r'\s+', text.lower())
     bad_word_set = retrieve_bad_words()
-    bad = sum(ch in bad_word_set for ch in tokens)
-    tokens_count = len(tokens)
 
-    # punctuation 
-    punct = sum(ch in string.punctuation for ch in text) # string.punctuation is a pre-defined string constant that contains a collection of characters commonly considered punctuation marks.
+    if any(token in bad_word_set for token in tokens):
+        return False
+    if not any(ch in string.punctuation for ch in text): # At least one punctuation character
+        return False
+    if not any(not ch.isspace() for ch in text): # Dont want empty or all whitespace
+        return False
 
-    char_count = len(text)
-
-    if bad / tokens_count > 0.02 or punct / char_count > 0.1: # if more than 10% of the characters are punctuation, reject the document
+    valid_chars = sum(ch.isalnum() or ch.isspace() or ch in string.punctuation for ch in text)
+    if valid_chars / len(text) < 0.8:
         return False
     return True
-
 
 
 
@@ -136,6 +137,16 @@ def is_english_text(text: str) -> bool:
     Returns:
         bool: True if text is primarily English, False otherwise
     """
+
+    # We use two conditions
+
+    try:
+        lang_info = detect_langs(text)
+        first_cond = lang_info and lang_info[0].lang == 'en' and lang_info[0].prob >= 0.95
+    except LangDetectException:
+        first_cond = False
+
+
     if not text:
         return False
 
@@ -148,7 +159,8 @@ def is_english_text(text: str) -> bool:
     if len(total_letters) == 0:
         return False
 
-    return len(english_letters) / len(total_letters) >= 0.9
+    return len(english_letters) / len(total_letters) >= 0.9 and first_cond
+
     
 
 def deduplicate_texts(texts: list[str]) -> list[str]:
@@ -167,7 +179,7 @@ def deduplicate_texts(texts: list[str]) -> list[str]:
             seen.add(norm_text)
 
     # Jaccard similarity: J(A, B) = A and B / A or B
-    jaccard_threshold = 0.9
+    jaccard_threshold = 0.5
     def jaccard(a: str, b:str) -> float:
         set_a = set(a.lower().split())
         set_b = set(b.lower().split())
@@ -213,11 +225,11 @@ if __name__ == '__main__' :
                 cleaned_text = clean_text(text)
                 # print("After cleaning: ", cleaned_text)
                 cleaned_nopii_text = replace_pii(cleaned_text)
-                # print("After PII removal: ", cleaned_nopii_text)
+                #print("After PII removal: ", cleaned_nopii_text)
                 passes_check = heuristic_quality_filter(cleaned_nopii_text)
                 is_english = is_english_text(cleaned_nopii_text)
                 print(url)
-                print("Passes heuristic quality filter:", passes_check)
+                # print("Passes heuristic quality filter:", passes_check)
                 print("Is English text:", is_english)
                 if passes_check and is_english:
                     passes += 1
