@@ -298,7 +298,7 @@ class Llama(LlamaPreTrainedModel):
                 # select the single most likely index
                 #TODO
                 # ====================== Implement greedy sampling here ======================
-                idx_next = torch.argmax(logits_last) #  (batch_size, 1)
+                idx_next = torch.argmax(logits_last, dim=-1, keepdim=True) #  (batch_size, 1)
                 # ====================== Implement greedy sampling here ======================
             else:
                 '''
@@ -323,9 +323,10 @@ class Llama(LlamaPreTrainedModel):
 
                 #TODO
                 # ====================== Implement temperature sampling here ======================
-                scaled_logits = logits_work / temperature #  (batch_size, vocab_size)
-                logits_probs = F.softmax(scaled_logits, dim=-1) # (batch_size, vocab_size)
-                idx_next = torch.multinomial(logits_probs, num_samples=1) # (batch_size, 1)
+                else:
+                    scaled_logits = logits_work / temperature #  (batch_size, vocab_size)
+                    logits_probs = F.softmax(scaled_logits, dim=-1) # (batch_size, vocab_size)
+                    idx_next = torch.multinomial(logits_probs, num_samples=1) # (batch_size, 1)
                 
                 # ====================== Implement temperature sampling here ======================
 
