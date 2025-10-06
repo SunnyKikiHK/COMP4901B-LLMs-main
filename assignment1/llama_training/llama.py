@@ -105,7 +105,7 @@ class Attention(nn.Module):
         norm_QK = QK / (head_dim ** 0.5)
 
         # unsequence is not necessary because of broadcasting
-        mark = torch.tril(torch.ones(seqlen, seqlen), diagonal=0, device=query.device).unsqueeze(0).unsqueeze(0) # mask out future tokens
+        mark = torch.tril(torch.ones(seqlen, seqlen), diagonal=0).unsqueeze(0).unsqueeze(0).to(query.device) # mask out future tokens
         masked_QK = norm_QK.masked_fill(mark == 0, float('-inf'))
 
         attn_w = F.softmax(masked_QK, dim=-1)
