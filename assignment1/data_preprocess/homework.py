@@ -46,7 +46,7 @@ def html_to_text(html) -> str:
 
     try:
         html = html.decode(enc_way)
-    except (UnicodeDecodeError, AttributeError):
+    except (UnicodeDecodeError, AttributeError, TypeError):
         html = html.decode('utf-8', errors='ignore') # errors='ignore': If a character or sequence of bytes is encountered that does not conform to the specified encoding, it will be silently dropped from the resulting string or byte sequence.
 
     result = BeautifulSoup(html, 'html') # lxml是速度较快的解析器，但需要额外安装。html.parser则是Python自带的解析器
