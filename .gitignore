@@ -19,3 +19,7 @@ llama_training/dev
 wandb
 checkpoints
 venv
+*.zip
+*.gz
+*.dev
+text.py
