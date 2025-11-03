@@ -23,3 +23,5 @@ venv
 *.gz
 *.dev
 text.py
+
+SmolLM2-135M/
