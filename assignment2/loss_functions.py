@@ -59,4 +59,30 @@ def cross_entropy_loss(
     Returns:
         Scalar tensor representing the mean loss over non-ignored tokens.
     """
-    raise NotImplementedError("Implement token-level cross-entropy using the logits.")
+
+    #casual shift 
+    logits = logits[:, :-1, :].contiguous()  # shape: [batch_size, seq_len-1, vocab_size]
+    labels = labels[:, 1:].contiguous()      # shape: [batch_size, seq_len-1]
+
+    # exp_logits = torch.exp(logits) 
+    # sum_exp = torch.sum(exp_logits, dim=-1, keepdim=True) # shape: [batch_size, seq_len-1, 1]
+    # log_softmax_result = torch.log(exp_logits / sum_exp) # shape: [batch_size, seq_len-1, vocab_size]
+    log_softmax_result = F.log_softmax(logits, dim=-1) # shape: [batch_size, seq_len-1, vocab_size]
+    
+    safe_labels = labels.clone()
+    safe_labels[labels == IGNORE_TOKEN_ID] = 0  # to avoid indexing errors by setting ignored labels to a valid index
+
+    #ce = -F.one_hot(labels, num_classes=logits.size(-1)) * log_softmax_result # shape: [batch_size, seq_len, vocab_size]
+    ce = -torch.gather(log_softmax_result, dim=-1, index=safe_labels.unsqueeze(-1)).squeeze(-1) # Another way, # shape: [batch_size, seq_len]
+
+    mask = (labels != IGNORE_TOKEN_ID) # shape: [batch_size, seq_len-1]
+    ce = ce * mask # shape: [batch_size, seq_len-1]
+
+    if num_items_in_batch != 0:
+        avg_loss = torch.sum(ce) / num_items_in_batch # shape: [batch_size, seq_len-1]
+        return avg_loss
+    else:
+        return torch.tensor(0.0, dtype=logits.dtype, device=logits.device)
+
+
+    #raise NotImplementedError("Implement token-level cross-entropy using the logits.")

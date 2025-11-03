@@ -156,9 +156,14 @@ def reverse_conversation_to_features(
         #   - `prefix_lengths[i]` gives the token count up through `messages[i]`
         #
         # TODO: Implement Exercise 3 here
-        raise NotImplementedError(
-            "Exercise 3: Please implement single-turn reverse loss masking"
-        )
+
+
+        start, end = prefix_lengths[-2], prefix_lengths[-1]
+        labels[start:end] = full_ids[start:end]
+
+        # raise NotImplementedError(
+        #     "Exercise 3: Please implement single-turn reverse loss masking"
+        # )
     else:
         # ------------------------------------------------------------------
         # Exercise 4: Multi-turn Reverse Loss Masking
@@ -184,9 +189,23 @@ def reverse_conversation_to_features(
         #   - The system message provides context for the first user turn
         #
         # TODO: Implement Exercise 4 here
-        raise NotImplementedError(
-            "Exercise 4: Please implement multi-turn reverse loss masking"
-        )
+        full_id_len = len(full_ids)
+        for i, msg in enumerate(messages):
+            if msg["role"] != "user":
+                continue
+            start, end = prefix_lengths[i-1] if i > 0 else 0 , min(prefix_lengths[i], full_id_len)
+
+            if start >= full_id_len: # out of bounds due to truncation and it happens to be a assistant message
+                break
+
+            labels[start:end] = full_ids[start:end]
+
+            if end >= full_id_len: # reached the end of full_ids
+                break
+
+        # raise NotImplementedError(
+        #     "Exercise 4: Please implement multi-turn reverse loss masking"
+        # )
 
     if len(full_ids) > max_length:
         if truncation == "left":

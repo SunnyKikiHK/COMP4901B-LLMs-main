@@ -89,7 +89,19 @@ def conversation_to_features(
         #   - `prefix_lengths[i]` gives the token count up through
         #     `messages[i]`.
         #
-        raise NotImplementedError("Exercise 1: implement the single-turn loss mask.")
+
+        # full_ids -> flatten of all those token IDs in model input order
+        # prefix_lengths -> tells you where “System”, “User”, and “Assistant” segments begin and end inside full_ids
+        # Use those ranges to decide which parts of labels to fill in, and which to leave as IGNORE_TOKEN_ID
+
+        # mask = torch.zeros(len(full_ids), dtype=torch.bool) 
+        # mask[prefix_lengths[-2]:prefix_lengths[-1]] = True  # unmask assistant tokens
+
+        start, end = prefix_lengths[-2], prefix_lengths[-1]
+        labels[start:end] = full_ids[start:end]
+
+
+        #raise NotImplementedError("Exercise 1: implement the single-turn loss mask.")
     else:
         # ------------------------------------------------------------------
         # Exercise 2: Multi-turn loss mask
@@ -112,7 +124,21 @@ def conversation_to_features(
         #   - The code that follows assumes `labels` already reflect your
         #     masking decisions.
         #
-        raise NotImplementedError("Exercise 2: extend the loss mask to multi-turn conversations.")
+        full_id_len = len(full_ids)
+        for i, msg in enumerate(messages):
+            if msg["role"] != "assistant":
+                continue
+
+            start, end = prefix_lengths[i-1] if i > 0 else 0 , min(prefix_lengths[i], full_id_len)
+
+            if start >= full_id_len: # out of bounds due to truncation and it happens to be a user message
+                break
+
+            labels[start:end] = full_ids[start:end]
+
+            if end >= full_id_len:
+                break
+        #raise NotImplementedError("Exercise 2: extend the loss mask to multi-turn conversations.")
 
     if len(full_ids) > max_length:
         if truncation == "left":
