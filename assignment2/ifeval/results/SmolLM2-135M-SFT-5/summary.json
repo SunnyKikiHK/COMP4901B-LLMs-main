@@ -1,0 +1,7 @@
+{
+  "response_file": "results/SmolLM2-135M-SFT-5/responses_FT5.jsonl",
+  "strict_accuracy": 0.31,
+  "loose_accuracy": 0.35,
+  "strict_accuracy_percentage": 31.0,
+  "loose_accuracy_percentage": 35.0
+}

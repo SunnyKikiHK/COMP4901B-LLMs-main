@@ -43,6 +43,12 @@ def conversation_to_features(
             tokenize=True,
             add_generation_prompt=False,
         )
+        full_texts = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=False,
+        )
+        print(full_texts)
     except Exception as exc:  # pragma: no cover - debug helper
         warnings.warn(f"Failed to apply chat template: {exc}")
         return None
