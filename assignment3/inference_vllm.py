@@ -261,11 +261,14 @@ def run_inference(
     llm = LLM(model=model_path, tokenizer=model_path, tensor_parallel_size=tensor_parallel_size, gpu_memory_utilization=gpu_memory_utilization)
     sampling_params = SamplingParams(temperature=temperature, top_p=top_p, top_k=top_k, max_tokens=max_tokens, n=n_rollouts) if top_k != -1 else SamplingParams(temperature=temperature, top_p=top_p, max_tokens=max_tokens, n= n_rollouts)
 
-    outputs = []
-    for i in range(0, len(formatted_prompts), batch_size):
-        batch_prompts = formatted_prompts[i:i+batch_size]
-        batch_results = llm.generate(batch_prompts, sampling_params=sampling_params)
-        outputs.extend(batch_results)
+    # outputs = []
+    # for i in range(0, len(formatted_prompts), batch_size):
+    #     batch_prompts = formatted_prompts[i:i+batch_size]
+    #     batch_results = llm.generate(batch_prompts, sampling_params=sampling_params)
+    #     outputs.extend(batch_results)
+
+    outputs = llm.generate(formatted_prompts, sampling_params=sampling_params)
+
 
 
     # Save results
