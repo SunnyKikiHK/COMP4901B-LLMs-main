@@ -27,3 +27,6 @@ text.py
 SmolLM2-135M/
 smol-smoltalk-6k.*
 *.jsonl
+
+assignment3/gsm8k-local
+assignment3/Qwen3-0.6B
