@@ -30,3 +30,4 @@ smol-smoltalk-6k.*
 
 assignment3/gsm8k-local
 assignment3/Qwen3-0.6B
+*.log
