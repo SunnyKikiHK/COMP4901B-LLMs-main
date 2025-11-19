@@ -137,7 +137,12 @@ def format_prompts(
                 messages.append({"role": "system", "content": system_message})
             messages.append({"role": "user", "content": prompt})
             try:
-                tokenized_prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                tokenized_prompt = tokenizer.apply_chat_template(
+                    messages, 
+                    tokenize=False, 
+                    add_generation_prompt=True,
+                    enable_thinking=enable_thinking
+                    )
                 formatted_prompts.append(tokenized_prompt)
             except Exception as e:
                 logger.warning(f"Chat template not supported by this model/tokenizer. Using raw prompt. Error: {e}")
